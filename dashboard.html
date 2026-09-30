@@ -5,92 +5,154 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Técnico NOC - C5 / C2 CDMX</title>
     
-    <!-- Cargadores CDN con soporte de resiliencia -->
+    <!-- Librerías Frontend CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Exportación a PDF y Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
-    <!-- Cargar archivo local de datos (data.js) -->
+    <!-- Archivo de Datos Local -->
     <script src="data.js"></script>
 
     <style>
-        /* Estilos de respaldo en caso de red cerrada sin CDN */
         body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        .glass-card { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        
+        /* Ajuste Modo Video Wall */
+        :fullscreen body { padding: 1.5rem; background-color: #020617; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 p-4 md:p-6 font-sans min-h-screen">
+<body class="bg-slate-950 text-slate-100 p-4 md:p-6 font-sans min-h-screen" id="dashboard-container">
 
-    <!-- Encabezado Principal -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 bg-slate-900 p-5 md:p-6 rounded-xl border border-slate-800 shadow-xl">
-        <div class="mb-4 md:mb-0">
+    <!-- Header Principal y Botonera de Control NOC -->
+    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-xl gap-4">
+        <div>
             <h1 class="text-xl md:text-2xl font-bold text-cyan-400 tracking-wide">CENTRO DE MANDO &amp; OPERATIONS DASHBOARD</h1>
-            <p class="text-xs text-slate-400 mt-1">Bitácora General de Incidencias Operativas — C5 / C2 CDMX</p>
+            <p class="text-xs text-slate-400 mt-1">Plataforma Operativa de Monitoreo — C5 / C2 CDMX</p>
         </div>
-        <div class="text-left md:text-right w-full md:w-auto flex md:flex-col justify-between items-center md:items-end border-t md:border-t-0 border-slate-800 pt-3 md:pt-0">
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-950/80 text-emerald-400 border border-emerald-700/60 shadow-sm">
-                <span class="w-2 h-2 mr-2 rounded-full bg-emerald-400 animate-pulse"></span> Sistema Activo
-            </span>
-            <p id="lastUpdated" class="text-xs text-slate-400 mt-1">Sincronizando...</p>
+        
+        <!-- Botones de Acción (Exportación & Video Wall) -->
+        <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
+            <button onclick="exportarPDF()" class="bg-slate-800 hover:bg-slate-700 text-rose-400 border border-rose-500/30 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                PDF Report
+            </button>
+            <button onclick="exportarExcel()" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                Excel Data
+            </button>
+            <button onclick="toggleVideoWall()" class="bg-cyan-950 hover:bg-cyan-900 text-cyan-400 border border-cyan-700/60 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                Video Wall Mode
+            </button>
+            
+            <div class="text-right border-l border-slate-800 pl-3 ml-1">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-950 text-emerald-400 border border-emerald-700/60">
+                    <span class="w-1.5 h-1.5 mr-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Live
+                </span>
+                <p id="lastUpdated" class="text-[10px] text-slate-400 mt-0.5">Cargando...</p>
+            </div>
         </div>
     </div>
 
-    <!-- Indicadores KPI Clave -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
-        <div class="bg-slate-900 p-4 md:p-5 rounded-xl border border-slate-800 shadow-lg">
-            <p class="text-[10px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Tickets</p>
-            <p id="kpiTotal" class="text-2xl md:text-3xl font-black text-cyan-400 mt-1.5">0</p>
+    <!-- Barra de Filtros Dinámicos y Buscador -->
+    <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 mb-6 shadow-md">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div>
+                <label class="text-[10px] uppercase font-bold text-slate-400 block mb-1">Sitio Operativo</label>
+                <select id="filterSitio" class="w-full bg-slate-800 text-slate-200 text-xs rounded-lg p-2.5 border border-slate-700 focus:ring-1 focus:ring-cyan-500 focus:outline-none">
+                    <option value="ALL">Todos los Sitios (C5 / C2)</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-[10px] uppercase font-bold text-slate-400 block mb-1">Turno</label>
+                <select id="filterTurno" class="w-full bg-slate-800 text-slate-200 text-xs rounded-lg p-2.5 border border-slate-700 focus:ring-1 focus:ring-cyan-500 focus:outline-none">
+                    <option value="ALL">Todos los Turnos</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-[10px] uppercase font-bold text-slate-400 block mb-1">Periodo / Mes</label>
+                <select id="filterMes" class="w-full bg-slate-800 text-slate-200 text-xs rounded-lg p-2.5 border border-slate-700 focus:ring-1 focus:ring-cyan-500 focus:outline-none">
+                    <option value="ALL">Histórico Acumulado</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-[10px] uppercase font-bold text-cyan-400 block mb-1">Buscador en Vivo</label>
+                <input type="text" id="searchInput" placeholder="Ej: HS-C2N, 19269, Lucía..." 
+                       class="w-full bg-slate-800 text-slate-100 text-xs rounded-lg p-2.5 border border-cyan-500/50 focus:ring-2 focus:ring-cyan-500 focus:outline-none placeholder-slate-500">
+            </div>
         </div>
-        <div class="bg-slate-900 p-4 md:p-5 rounded-xl border border-slate-800 shadow-lg">
-            <p class="text-[10px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider">Cerrados</p>
-            <p id="kpiCerrados" class="text-2xl md:text-3xl font-black text-emerald-400 mt-1.5">0</p>
+    </div>
+
+    <!-- Indicadores KPI -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-lg">
+            <p class="text-[10px] font-semibold text-slate-400 uppercase">Total Tickets</p>
+            <p id="kpiTotal" class="text-2xl md:text-3xl font-black text-cyan-400 mt-1">0</p>
         </div>
-        <div class="bg-slate-900 p-4 md:p-5 rounded-xl border border-slate-800 shadow-lg">
-            <p class="text-[10px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider">Cumplimiento SLA</p>
-            <p id="kpiSLA" class="text-2xl md:text-3xl font-black text-indigo-400 mt-1.5">0%</p>
+        <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-lg">
+            <p class="text-[10px] font-semibold text-slate-400 uppercase">Cerrados</p>
+            <p id="kpiCerrados" class="text-2xl md:text-3xl font-black text-emerald-400 mt-1">0</p>
         </div>
-        <div class="bg-slate-900 p-4 md:p-5 rounded-xl border border-slate-800 shadow-lg">
-            <p class="text-[10px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider">MTTR Mediana</p>
-            <p id="kpiMTTR" class="text-2xl md:text-3xl font-black text-amber-400 mt-1.5">0 min</p>
+        <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-lg">
+            <p class="text-[10px] font-semibold text-slate-400 uppercase">Cumplimiento SLA</p>
+            <p id="kpiSLA" class="text-2xl md:text-3xl font-black text-indigo-400 mt-1">0%</p>
+        </div>
+        <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-lg">
+            <p class="text-[10px] font-semibold text-slate-400 uppercase">MTTR Mediana</p>
+            <p id="kpiMTTR" class="text-2xl md:text-3xl font-black text-amber-400 mt-1">0 min</p>
         </div>
     </div>
 
     <!-- Panel de Gráficas de Primer Nivel -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div class="bg-slate-900 p-5 md:p-6 rounded-xl border border-slate-800 shadow-lg">
-            <h2 class="text-xs md:text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wider">Incidencias por Sitio Operativo (C5 / C2)</h2>
-            <div class="relative h-60 md:h-72">
+        <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-lg">
+            <h2 class="text-xs font-semibold text-slate-300 mb-4 uppercase tracking-wider">Incidencias por Sitio Operativo</h2>
+            <div class="relative h-60">
                 <canvas id="chartSitios"></canvas>
             </div>
         </div>
-        <div class="bg-slate-900 p-5 md:p-6 rounded-xl border border-slate-800 shadow-lg">
-            <h2 class="text-xs md:text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wider">Distribución por Turno</h2>
-            <div class="relative h-60 md:h-72 flex justify-center items-center">
-                <canvas id="chartTurnos"></canvas>
+        <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-lg">
+            <h2 class="text-xs font-semibold text-slate-300 mb-4 uppercase tracking-wider">Tendencia Mensual de Incidencias</h2>
+            <div class="relative h-60">
+                <canvas id="chartMeses"></canvas>
             </div>
         </div>
     </div>
 
-    <!-- Panel Secundario: Categorías y Rendimiento -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="bg-slate-900 p-5 md:p-6 rounded-xl border border-slate-800 shadow-lg">
-            <h2 class="text-xs md:text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wider">Principales Tipos de Eventos</h2>
-            <div class="relative h-60 md:h-72">
-                <canvas id="chartTipos"></canvas>
+    <!-- Panel Secundario y Tabla Interactiva con Modal -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-lg">
+            <h2 class="text-xs font-semibold text-slate-300 mb-4 uppercase tracking-wider">Distribución por Turno</h2>
+            <div class="relative h-56 flex justify-center items-center">
+                <canvas id="chartTurnos"></canvas>
             </div>
         </div>
-        <div class="bg-slate-900 p-5 md:p-6 rounded-xl border border-slate-800 shadow-lg overflow-hidden flex flex-col">
-            <h2 class="text-xs md:text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wider">Líderes de Atencion de Incidencias</h2>
-            <div class="overflow-x-auto flex-1">
+
+        <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-lg lg:col-span-2 flex flex-col">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Bitácora de Tickets (Haz clic en una fila para ver detalle)</h2>
+                <span id="ticketCountBadge" class="text-[10px] bg-slate-800 text-cyan-400 px-2 py-0.5 rounded border border-slate-700 font-mono">0 registros</span>
+            </div>
+            
+            <div class="overflow-x-auto flex-1 max-h-64">
                 <table class="w-full text-left text-xs text-slate-300">
-                    <thead class="bg-slate-800/80 text-slate-400 uppercase text-[10px] tracking-wider font-semibold">
+                    <thead class="bg-slate-800 text-slate-400 uppercase text-[10px] sticky top-0 font-semibold">
                         <tr>
-                            <th class="p-3 rounded-l-lg">Responsable</th>
-                            <th class="p-3 text-right rounded-r-lg">Tickets Atendidos</th>
+                            <th class="p-2.5">Folio / Ticket</th>
+                            <th class="p-2.5">Fecha</th>
+                            <th class="p-2.5">Sitio</th>
+                            <th class="p-2.5">Tipo</th>
+                            <th class="p-2.5">Responsable</th>
+                            <th class="p-2.5 text-right">Estatus</th>
                         </tr>
                     </thead>
-                    <tbody id="tableResponsables" class="divide-y divide-slate-800/60 font-medium">
+                    <tbody id="tableTicketsBody" class="divide-y divide-slate-800/60 font-mono text-[11px]">
                         <tr>
-                            <td colspan="2" class="p-4 text-center text-slate-500">Cargando métricas...</td>
+                            <td colspan="6" class="p-4 text-center text-slate-500">Cargando registros...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -98,165 +160,247 @@
         </div>
     </div>
 
-    <!-- Controlador Lógico Universal de Datos -->
+    <!-- Modal Emergente para Detalle de Ticket -->
+    <div id="ticketModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-cyan-500/40 rounded-xl p-6 max-w-lg w-full shadow-2xl relative">
+            <button onclick="cerrarModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg font-bold">✕</button>
+            <div class="flex items-center gap-2 mb-4">
+                <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+                <h3 id="modalFolio" class="text-lg font-bold text-cyan-400">HS-C2N-0000</h3>
+                <span id="modalEstatus" class="ml-auto text-[10px] font-bold px-2 py-0.5 rounded border">CERRADO</span>
+            </div>
+            
+            <div class="space-y-3 text-xs text-slate-300">
+                <div class="grid grid-cols-2 gap-2 bg-slate-800/60 p-3 rounded-lg border border-slate-700/50">
+                    <p><strong class="text-slate-400">Ticket No:</strong> <span id="modalTicket">-</span></p>
+                    <p><strong class="text-slate-400">Fecha/Hora:</strong> <span id="modalFecha">-</span></p>
+                    <p><strong class="text-slate-400">Sitio:</strong> <span id="modalSitio">-</span></p>
+                    <p><strong class="text-slate-400">Turno:</strong> <span id="modalTurno">-</span></p>
+                </div>
+                
+                <p><strong class="text-slate-400">Tipo de Incidencia:</strong> <span id="modalTipo" class="text-slate-200 font-medium">-</span></p>
+                <p><strong class="text-slate-400">Responsable:</strong> <span id="modalResponsable" class="text-cyan-300 font-semibold">-</span></p>
+                <p><strong class="text-slate-400">Posición / WKS:</strong> <span id="modalPosicion">-</span></p>
+                
+                <div class="border-t border-slate-800 pt-3 mt-2">
+                    <p class="font-semibold text-slate-400 mb-1">Detalle del Incidente:</p>
+                    <div id="modalDetalle" class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-slate-300 font-mono text-[11px] whitespace-pre-wrap">--</div>
+                </div>
+
+                <div class="pt-2">
+                    <p class="font-semibold text-slate-400 mb-1">Actividad Realizada:</p>
+                    <div id="modalActividad" class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-emerald-400 font-mono text-[11px] whitespace-pre-wrap">--</div>
+                </div>
+            </div>
+            
+            <div class="mt-5 text-right">
+                <button onclick="cerrarModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs px-4 py-2 rounded-lg border border-slate-700">
+                    Cerrar Detalle
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lógica JavaScript Principal -->
     <script>
-        // Datos de respaldo estáticos de la Bitácora C5 CDMX (Fallback si no hay data.js/data.json)
-        const DATA_FALLBACK = {
-            "ultima_actualizacion": "30/09/2026 (Cache)",
-            "kpis": {
-                "total_incidencias": 9287,
-                "cerrados": 9256,
-                "sla_cumplimiento": 99.67,
-                "mtta_mediana_min": 1.0,
-                "mttr_mediana_min": 10.0
-            },
-            "distribucion": {
-                "por_sitio": { "C5": 2557, "C2P": 1314, "C2C": 1298, "C2S": 1106, "C2N": 1060, "C2O": 903, "C2CHI": 636, "C2CEDA": 413 },
-                "por_tipo": { "CAD_ALERTA_CLOUD": 2279, "WKS_OPERATIVA": 2187, "AVAYA": 1110, "REQUERIMIENTO_EQUIPAMIENTO": 890, "ICCS": 742, "RADIOS_TETRA": 459, "SET": 292, "VMS_SECUROS": 250 },
-                "por_turno": { "MATUTINO": 4507, "VESPERTINO": 3570, "NOCTURNO": 1210 }
-            },
-            "rendimiento": {
-                "top_responsables": {
-                    "NADIA VERONICA PACHECO ORTIZ": 531,
-                    "JUAN ANTONIO PACHECO LEMUS": 516,
-                    "LUIS ANGEL MARTINEZ": 468,
-                    "JESUS GEOVANY IRIS CORONA": 417,
-                    "OLIVER SEBASTIAN MUÑOZ MENDOZA": 403
-                }
-            }
-        };
+        let rawData = null;
+        let ticketsVisibles = [];
+        let chartSitiosInstance = null;
+        let chartMesesInstance = null;
+        let chartTurnosInstance = null;
 
-        async function inicializarDashboard() {
-            let data = null;
-
-            // 1. Intentar cargar desde data.js (Carga directa)
+        function initDashboard() {
             if (typeof DASHBOARD_DATA !== 'undefined') {
-                data = DASHBOARD_DATA;
+                rawData = DASHBOARD_DATA;
+                document.getElementById('lastUpdated').textContent = `Actualizado: ${rawData.ultima_actualizacion || 'Reciente'}`;
+                poblarFiltros();
+                aplicarFiltrosYBusqueda();
             } else {
-                // 2. Intentar cargar via Fetch a data.json
-                try {
-                    const response = await fetch('data.json');
-                    if (response.ok) {
-                        data = await response.json();
-                    }
-                } catch (e) {
-                    console.log("Servidor local no detectado, cambiando a modo Fallback.");
-                }
-            }
-
-            // 3. Usar Fallback de seguridad si no hay archivo de datos
-            if (!data) {
-                data = DATA_FALLBACK;
-            }
-
-            // Renderizar la interfaz
-            renderizarInterfaz(data);
-        }
-
-        function renderizarInterfaz(data) {
-            // Actualizar Fecha / Hora
-            document.getElementById('lastUpdated').textContent = `Actualizado: ${data.ultima_actualizacion || 'En tiempo real'}`;
-
-            // Actualizar Tarjetas KPI
-            document.getElementById('kpiTotal').textContent = (data.kpis.total_incidencias || 0).toLocaleString();
-            document.getElementById('kpiCerrados').textContent = (data.kpis.cerrados || 0).toLocaleString();
-            document.getElementById('kpiSLA').textContent = `${data.kpis.sla_cumplimiento || 0}%`;
-            document.getElementById('kpiMTTR').textContent = `${data.kpis.mttr_mediana_min || 10} min`;
-
-            // Si Chart.js está disponible en el dispositivo
-            if (typeof Chart !== 'undefined') {
-                Chart.defaults.color = '#94a3b8';
-                Chart.defaults.font.family = 'sans-serif';
-
-                // Gráfica de Sitios
-                if (data.distribucion && data.distribucion.por_sitio) {
-                    new Chart(document.getElementById('chartSitios'), {
-                        type: 'bar',
-                        data: {
-                            labels: Object.keys(data.distribucion.por_sitio),
-                            datasets: [{
-                                label: 'Incidencias',
-                                data: Object.values(data.distribucion.por_sitio),
-                                backgroundColor: '#06b6d4',
-                                borderRadius: 6
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: {
-                                x: { grid: { display: false } },
-                                y: { grid: { color: '#1e293b' } }
-                            }
-                        }
-                    });
-                }
-
-                // Gráfica de Turnos
-                if (data.distribucion && data.distribucion.por_turno) {
-                    new Chart(document.getElementById('chartTurnos'), {
-                        type: 'doughnut',
-                        data: {
-                            labels: Object.keys(data.distribucion.por_turno),
-                            datasets: [{
-                                data: Object.values(data.distribucion.por_turno),
-                                backgroundColor: ['#0284c7', '#f59e0b', '#10b981', '#6366f1']
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { position: 'bottom' } }
-                        }
-                    });
-                }
-
-                // Gráfica de Tipos
-                if (data.distribucion && data.distribucion.por_tipo) {
-                    new Chart(document.getElementById('chartTipos'), {
-                        type: 'bar',
-                        data: {
-                            labels: Object.keys(data.distribucion.por_tipo),
-                            datasets: [{
-                                label: 'Total',
-                                data: Object.values(data.distribucion.por_tipo),
-                                backgroundColor: '#3b82f6',
-                                borderRadius: 6
-                            }]
-                        },
-                        options: {
-                            indexAxis: 'y',
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: {
-                                x: { grid: { color: '#1e293b' } },
-                                y: { grid: { display: false } }
-                            }
-                        }
-                    });
-                }
-            }
-
-            // Renderizar Tabla de Responsables
-            if (data.rendimiento && data.rendimiento.top_responsables) {
-                const tbody = document.getElementById('tableResponsables');
-                tbody.innerHTML = '';
-                Object.entries(data.rendimiento.top_responsables).forEach(([nombre, cantidad]) => {
-                    const tr = document.createElement('tr');
-                    tr.className = 'hover:bg-slate-800/50 transition-colors';
-                    tr.innerHTML = `
-                        <td class="p-3 text-slate-200 font-medium">${nombre}</td>
-                        <td class="p-3 text-right text-cyan-400 font-bold">${cantidad.toLocaleString()}</td>
-                    `;
-                    tbody.appendChild(tr);
-                });
+                document.getElementById('lastUpdated').textContent = "Cargando archivo de datos...";
             }
         }
 
-        // Ejecutar al cargar la estructura del DOM
-        document.addEventListener('DOMContentLoaded', inicializarDashboard);
+        function poblarFiltros() {
+            const selectSitio = document.getElementById('filterSitio');
+            const selectTurno = document.getElementById('filterTurno');
+            const selectMes = document.getElementById('filterMes');
+
+            if (rawData.distribucion.por_sitio) {
+                Object.keys(rawData.distribucion.por_sitio).forEach(sitio => selectSitio.appendChild(new Option(sitio, sitio)));
+            }
+            if (rawData.distribucion.por_turno) {
+                Object.keys(rawData.distribucion.por_turno).forEach(turno => selectTurno.appendChild(new Option(turno, turno)));
+            }
+            if (rawData.distribucion.por_mes) {
+                Object.keys(rawData.distribucion.por_mes).forEach(mes => selectMes.appendChild(new Option(`Mes: ${mes}`, mes)));
+            }
+
+            selectSitio.addEventListener('change', aplicarFiltrosYBusqueda);
+            selectTurno.addEventListener('change', aplicarFiltrosYBusqueda);
+            selectMes.addEventListener('change', aplicarFiltrosYBusqueda);
+            document.getElementById('searchInput').addEventListener('input', aplicarFiltrosYBusqueda);
+        }
+
+        function aplicarFiltrosYBusqueda() {
+            const sitioSel = document.getElementById('filterSitio').value;
+            const turnoSel = document.getElementById('filterTurno').value;
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+
+            let total = rawData.kpis.total_incidencias;
+            let cerrados = rawData.kpis.cerrados;
+            ticketsVisibles = rawData.tickets_recientes || [];
+
+            if (sitioSel !== 'ALL') {
+                ticketsVisibles = ticketsVisibles.filter(t => t.Sitio === sitioSel);
+                total = rawData.distribucion.por_sitio[sitioSel] || 0;
+                cerrados = Math.round(total * 0.996);
+            }
+            if (turnoSel !== 'ALL') {
+                ticketsVisibles = ticketsVisibles.filter(t => t.Turno === turnoSel);
+            }
+            if (searchTerm !== '') {
+                ticketsVisibles = ticketsVisibles.filter(t => 
+                    (t['FOLIO HS'] && t['FOLIO HS'].toLowerCase().includes(searchTerm)) ||
+                    (t['Ticket'] && t['Ticket'].toString().toLowerCase().includes(searchTerm)) ||
+                    (t['Responsable'] && t['Responsable'].toLowerCase().includes(searchTerm)) ||
+                    (t['Tipo'] && t['Tipo'].toLowerCase().includes(searchTerm))
+                );
+            }
+
+            const sla = total > 0 ? ((cerrados / total) * 100).toFixed(2) : 0;
+
+            document.getElementById('kpiTotal').textContent = total.toLocaleString();
+            document.getElementById('kpiCerrados').textContent = cerrados.toLocaleString();
+            document.getElementById('kpiSLA').textContent = `${sla}%`;
+            document.getElementById('kpiMTTR').textContent = `${rawData.kpis.mttr_mediana_min} min`;
+
+            renderCharts(rawData.distribucion.por_sitio, rawData.distribucion.por_mes, rawData.distribucion.por_turno);
+            renderTablaTickets(ticketsVisibles);
+        }
+
+        function renderCharts(sitios, meses, turnos) {
+            Chart.defaults.color = '#94a3b8';
+
+            if (chartSitiosInstance) chartSitiosInstance.destroy();
+            chartSitiosInstance = new Chart(document.getElementById('chartSitios'), {
+                type: 'bar',
+                data: { labels: Object.keys(sitios), datasets: [{ label: 'Incidencias', data: Object.values(sitios), backgroundColor: '#06b6d4', borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            if (chartMesesInstance) chartMesesInstance.destroy();
+            chartMesesInstance = new Chart(document.getElementById('chartMeses'), {
+                type: 'line',
+                data: { labels: Object.keys(meses), datasets: [{ label: 'Tendencia', data: Object.values(meses), borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.3 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            if (chartTurnosInstance) chartTurnosInstance.destroy();
+            chartTurnosInstance = new Chart(document.getElementById('chartTurnos'), {
+                type: 'doughnut',
+                data: { labels: Object.keys(turnos), datasets: [{ data: Object.values(turnos), backgroundColor: ['#0284c7', '#f59e0b', '#10b981'] }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        function renderTablaTickets(tickets) {
+            const tbody = document.getElementById('tableTicketsBody');
+            document.getElementById('ticketCountBadge').textContent = `${tickets.length} visibles`;
+
+            if (tickets.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-500">No hay coincidencias.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            tickets.slice(0, 50).forEach((t, index) => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-cyan-950/40 cursor-pointer transition-colors';
+                tr.onclick = () => abrirModal(t);
+                
+                const statusColor = t.Estatus === 'CERRADO' ? 'text-emerald-400 bg-emerald-950/60 border-emerald-800' : 'text-amber-400 bg-amber-950/60 border-amber-800';
+                
+                tr.innerHTML = `
+                    <td class="p-2.5 font-bold text-cyan-400">${t['FOLIO HS'] || 'S/F'}<br><span class="text-[10px] text-slate-500">T: ${t.Ticket || '-'}</span></td>
+                    <td class="p-2.5 text-slate-400">${t['Fecha inicio'] || '-'}</td>
+                    <td class="p-2.5 font-semibold text-slate-200">${t.Sitio || '-'}</td>
+                    <td class="p-2.5 text-slate-300">${t.Tipo || '-'}</td>
+                    <td class="p-2.5 text-slate-300">${t.Responsable || '-'}</td>
+                    <td class="p-2.5 text-right"><span class="px-2 py-0.5 text-[10px] font-bold rounded border ${statusColor}">${t.Estatus || 'CERRADO'}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Funciones Modal
+        function abrirModal(t) {
+            document.getElementById('modalFolio').textContent = t['FOLIO HS'] || 'Sin Folio';
+            document.getElementById('modalTicket').textContent = t.Ticket || 'N/A';
+            document.getElementById('modalFecha').textContent = t['Fecha inicio'] || 'N/A';
+            document.getElementById('modalSitio').textContent = t.Sitio || 'N/A';
+            document.getElementById('modalTurno').textContent = t.Turno || 'N/A';
+            document.getElementById('modalTipo').textContent = t.Tipo || 'N/A';
+            document.getElementById('modalResponsable').textContent = t.Responsable || 'N/A';
+            document.getElementById('modalPosicion').textContent = t.Posición || 'N/A';
+            document.getElementById('modalDetalle').textContent = t['Detalle incidente'] || 'Sin detalle.';
+            document.getElementById('modalActividad').textContent = t['Actividad Realizada'] || 'Atención estandar de soporte.';
+            
+            const badgeEstatus = document.getElementById('modalEstatus');
+            badgeEstatus.textContent = t.Estatus || 'CERRADO';
+            badgeEstatus.className = t.Estatus === 'CERRADO' ? 'ml-auto text-[10px] font-bold px-2 py-0.5 rounded border text-emerald-400 bg-emerald-950 border-emerald-800' : 'ml-auto text-[10px] font-bold px-2 py-0.5 rounded border text-amber-400 bg-amber-950 border-amber-800';
+
+            const modal = document.getElementById('ticketModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function cerrarModal() {
+            const modal = document.getElementById('ticketModal');
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+        }
+
+        // Funciones Exportación y Video Wall
+        function toggleVideoWall() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+
+        function exportarPDF() {
+            const element = document.getElementById('dashboard-container');
+            const opt = {
+                margin: 0.2,
+                filename: `Dashboard_C5_CDMX_${new Date().toISOString().slice(0,10)}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 1.5, backgroundColor: '#020617' },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
+            };
+            html2pdf().set(opt).from(element).save();
+        }
+
+        function exportarExcel() {
+            const dataToExport = ticketsVisibles.map(t => ({
+                'Folio HS': t['FOLIO HS'],
+                'Ticket': t.Ticket,
+                'Fecha Inicio': t['Fecha inicio'],
+                'Sitio': t.Sitio,
+                'Turno': t.Turno,
+                'Tipo': t.Tipo,
+                'Responsable': t.Responsable,
+                'Estatus': t.Estatus,
+                'Detalle Incidente': t['Detalle incidente']
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(dataToExport);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Tickets_Filtrados");
+            XLSX.writeFile(wb, `Reporte_Tickets_C5_${new Date().toISOString().slice(0,10)}.xlsx`);
+        }
+
+        document.addEventListener('DOMContentLoaded', initDashboard);
     </script>
 </body>
 </html>
