@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Técnico NOC - C5 / C2 CDMX</title>
+    
+    <!-- Cargadores CDN con soporte de resiliencia -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Cargar archivo local de datos (data.js) -->
+    <script src="data.js"></script>
+
+    <style>
+        /* Estilos de respaldo en caso de red cerrada sin CDN */
+        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .glass-card { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 p-4 md:p-6 font-sans min-h-screen">
+
+    <!-- Encabezado Principal -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 bg-slate-900 p-5 md:p-6 rounded-xl border border-slate-800 shadow-xl">
+        <div class="mb-4 md:mb-0">
+            <h1 class="text-xl md:text-2xl font-bold text-cyan-400 tracking-wide">CENTRO DE MANDO &amp; OPERATIONS DASHBOARD</h1>
+            <p class="text-xs text-slate-400 mt-1">Bitácora General de Incidencias Operativas — C5 / C2 CDMX</p>
+        </div>
+        <div class="text-left md:text-right w-full md:w-auto flex md:flex-col justify-between items-center md:items-end border-t md:border-t-0 border-slate-800 pt-3 md:pt-0">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-950/80 text-emerald-400 border border-emerald-700/60 shadow-sm">
+                <span class="w-2 h-2 mr-2 rounded-full bg-emerald-400 animate-pulse"></span> Sistema Activo
+            </span>
+            <p id="lastUpdated" class="text-xs text-slate-400 mt-1">Sincronizando...</p>
+        </div>
+    </div>
+
+    <!-- Indicadores KPI Clave -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
+        <div class="bg-slate-900 p-4 md:p-5 rounded-xl border border-slate-800 shadow-lg">
+            <p class="text-[10px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Tickets</p>
+            <p id="kpiTotal" class="text-2xl md:text-3xl font-black text-cyan-400 mt-1.5">0</p>
+        </div>
+        <div class="bg-slate-900 p-4 md:p-5 rounded-xl border border-slate-800 shadow-lg">
+            <p class="text-[10px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider">Cerrados</p>
+            <p id="kpiCerrados" class="text-2xl md:text-3xl font-black text-emerald-400 mt-1.5">0</p>
+        </div>
+        <div class="bg-slate-900 p-4 md:p-5 rounded-xl border border-slate-800 shadow-lg">
+            <p class="text-[10px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider">Cumplimiento SLA</p>
+            <p id="kpiSLA" class="text-2xl md:text-3xl font-black text-indigo-400 mt-1.5">0%</p>
+        </div>
+        <div class="bg-slate-900 p-4 md:p-5 rounded-xl border border-slate-800 shadow-lg">
+            <p class="text-[10px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider">MTTR Mediana</p>
+            <p id="kpiMTTR" class="text-2xl md:text-3xl font-black text-amber-400 mt-1.5">0 min</p>
+        </div>
+    </div>
+
+    <!-- Panel de Gráficas de Primer Nivel -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div class="bg-slate-900 p-5 md:p-6 rounded-xl border border-slate-800 shadow-lg">
+            <h2 class="text-xs md:text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wider">Incidencias por Sitio Operativo (C5 / C2)</h2>
+            <div class="relative h-60 md:h-72">
+                <canvas id="chartSitios"></canvas>
+            </div>
+        </div>
+        <div class="bg-slate-900 p-5 md:p-6 rounded-xl border border-slate-800 shadow-lg">
+            <h2 class="text-xs md:text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wider">Distribución por Turno</h2>
+            <div class="relative h-60 md:h-72 flex justify-center items-center">
+                <canvas id="chartTurnos"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Secundario: Categorías y Rendimiento -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-slate-900 p-5 md:p-6 rounded-xl border border-slate-800 shadow-lg">
+            <h2 class="text-xs md:text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wider">Principales Tipos de Eventos</h2>
+            <div class="relative h-60 md:h-72">
+                <canvas id="chartTipos"></canvas>
+            </div>
+        </div>
+        <div class="bg-slate-900 p-5 md:p-6 rounded-xl border border-slate-800 shadow-lg overflow-hidden flex flex-col">
+            <h2 class="text-xs md:text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wider">Líderes de Atencion de Incidencias</h2>
+            <div class="overflow-x-auto flex-1">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-800/80 text-slate-400 uppercase text-[10px] tracking-wider font-semibold">
+                        <tr>
+                            <th class="p-3 rounded-l-lg">Responsable</th>
+                            <th class="p-3 text-right rounded-r-lg">Tickets Atendidos</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableResponsables" class="divide-y divide-slate-800/60 font-medium">
+                        <tr>
+                            <td colspan="2" class="p-4 text-center text-slate-500">Cargando métricas...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controlador Lógico Universal de Datos -->
+    <script>
+        // Datos de respaldo estáticos de la Bitácora C5 CDMX (Fallback si no hay data.js/data.json)
+        const DATA_FALLBACK = {
+            "ultima_actualizacion": "30/09/2026 (Cache)",
+            "kpis": {
+                "total_incidencias": 9287,
+                "cerrados": 9256,
+                "sla_cumplimiento": 99.67,
+                "mtta_mediana_min": 1.0,
+                "mttr_mediana_min": 10.0
+            },
+            "distribucion": {
+                "por_sitio": { "C5": 2557, "C2P": 1314, "C2C": 1298, "C2S": 1106, "C2N": 1060, "C2O": 903, "C2CHI": 636, "C2CEDA": 413 },
+                "por_tipo": { "CAD_ALERTA_CLOUD": 2279, "WKS_OPERATIVA": 2187, "AVAYA": 1110, "REQUERIMIENTO_EQUIPAMIENTO": 890, "ICCS": 742, "RADIOS_TETRA": 459, "SET": 292, "VMS_SECUROS": 250 },
+                "por_turno": { "MATUTINO": 4507, "VESPERTINO": 3570, "NOCTURNO": 1210 }
+            },
+            "rendimiento": {
+                "top_responsables": {
+                    "NADIA VERONICA PACHECO ORTIZ": 531,
+                    "JUAN ANTONIO PACHECO LEMUS": 516,
+                    "LUIS ANGEL MARTINEZ": 468,
+                    "JESUS GEOVANY IRIS CORONA": 417,
+                    "OLIVER SEBASTIAN MUÑOZ MENDOZA": 403
+                }
+            }
+        };
+
+        async function inicializarDashboard() {
+            let data = null;
+
+            // 1. Intentar cargar desde data.js (Carga directa)
+            if (typeof DASHBOARD_DATA !== 'undefined') {
+                data = DASHBOARD_DATA;
+            } else {
+                // 2. Intentar cargar via Fetch a data.json
+                try {
+                    const response = await fetch('data.json');
+                    if (response.ok) {
+                        data = await response.json();
+                    }
+                } catch (e) {
+                    console.log("Servidor local no detectado, cambiando a modo Fallback.");
+                }
+            }
+
+            // 3. Usar Fallback de seguridad si no hay archivo de datos
+            if (!data) {
+                data = DATA_FALLBACK;
+            }
+
+            // Renderizar la interfaz
+            renderizarInterfaz(data);
+        }
+
+        function renderizarInterfaz(data) {
+            // Actualizar Fecha / Hora
+            document.getElementById('lastUpdated').textContent = `Actualizado: ${data.ultima_actualizacion || 'En tiempo real'}`;
+
+            // Actualizar Tarjetas KPI
+            document.getElementById('kpiTotal').textContent = (data.kpis.total_incidencias || 0).toLocaleString();
+            document.getElementById('kpiCerrados').textContent = (data.kpis.cerrados || 0).toLocaleString();
+            document.getElementById('kpiSLA').textContent = `${data.kpis.sla_cumplimiento || 0}%`;
+            document.getElementById('kpiMTTR').textContent = `${data.kpis.mttr_mediana_min || 10} min`;
+
+            // Si Chart.js está disponible en el dispositivo
+            if (typeof Chart !== 'undefined') {
+                Chart.defaults.color = '#94a3b8';
+                Chart.defaults.font.family = 'sans-serif';
+
+                // Gráfica de Sitios
+                if (data.distribucion && data.distribucion.por_sitio) {
+                    new Chart(document.getElementById('chartSitios'), {
+                        type: 'bar',
+                        data: {
+                            labels: Object.keys(data.distribucion.por_sitio),
+                            datasets: [{
+                                label: 'Incidencias',
+                                data: Object.values(data.distribucion.por_sitio),
+                                backgroundColor: '#06b6d4',
+                                borderRadius: 6
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                x: { grid: { display: false } },
+                                y: { grid: { color: '#1e293b' } }
+                            }
+                        }
+                    });
+                }
+
+                // Gráfica de Turnos
+                if (data.distribucion && data.distribucion.por_turno) {
+                    new Chart(document.getElementById('chartTurnos'), {
+                        type: 'doughnut',
+                        data: {
+                            labels: Object.keys(data.distribucion.por_turno),
+                            datasets: [{
+                                data: Object.values(data.distribucion.por_turno),
+                                backgroundColor: ['#0284c7', '#f59e0b', '#10b981', '#6366f1']
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { position: 'bottom' } }
+                        }
+                    });
+                }
+
+                // Gráfica de Tipos
+                if (data.distribucion && data.distribucion.por_tipo) {
+                    new Chart(document.getElementById('chartTipos'), {
+                        type: 'bar',
+                        data: {
+                            labels: Object.keys(data.distribucion.por_tipo),
+                            datasets: [{
+                                label: 'Total',
+                                data: Object.values(data.distribucion.por_tipo),
+                                backgroundColor: '#3b82f6',
+                                borderRadius: 6
+                            }]
+                        },
+                        options: {
+                            indexAxis: 'y',
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                x: { grid: { color: '#1e293b' } },
+                                y: { grid: { display: false } }
+                            }
+                        }
+                    });
+                }
+            }
+
+            // Renderizar Tabla de Responsables
+            if (data.rendimiento && data.rendimiento.top_responsables) {
+                const tbody = document.getElementById('tableResponsables');
+                tbody.innerHTML = '';
+                Object.entries(data.rendimiento.top_responsables).forEach(([nombre, cantidad]) => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-800/50 transition-colors';
+                    tr.innerHTML = `
+                        <td class="p-3 text-slate-200 font-medium">${nombre}</td>
+                        <td class="p-3 text-right text-cyan-400 font-bold">${cantidad.toLocaleString()}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        }
+
+        // Ejecutar al cargar la estructura del DOM
+        document.addEventListener('DOMContentLoaded', inicializarDashboard);
+    </script>
+</body>
+</html>
